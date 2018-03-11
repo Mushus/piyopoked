@@ -4,32 +4,37 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 )
 
 func NewClient(apiKey string) *Client {
 	return &Client{
-		APIKey:      apiKey,
-		Endpoint:    "https://api.apigw.smt.docomo.ne.jp/dialogue/v1",
-		userContext: map[string]string{},
+		APIKey:         apiKey,
+		Endpoint:       "https://api.apigw.smt.docomo.ne.jp/dialogue/v1",
+		userChatStatus: map[string]chatStatus{},
 	}
 }
 
 type Client struct {
-	APIKey      string
-	Endpoint    string
-	userContext map[string]string
+	APIKey         string
+	Endpoint       string
+	userChatStatus map[string]chatStatus
 }
 
 func (c *Client) Talk(userName string, message string) (string, error) {
 	client := &http.Client{}
 
 	uri := fmt.Sprintf("%s/dialogue?APIKEY=%s", c.Endpoint, c.APIKey)
-	context, _ := c.userContext[userName]
+	status, _ := c.userChatStatus[userName]
 	reqBody := DialogueReq{
-		UTT:     message,
-		Context: context,
+		UTT:      message,
+		Nickname: userName,
+		Context:  status.context,
+		Mode:     status.mode,
+		T:        "30",
 	}
+	log.Printf("%#v", reqBody)
 	b, err := json.Marshal(reqBody)
 	if err != nil {
 		return "", err
@@ -43,12 +48,26 @@ func (c *Client) Talk(userName string, message string) (string, error) {
 	buf := new(bytes.Buffer)
 	buf.ReadFrom(resp.Body)
 	respBody := &DialogueResp{}
-	err = json.Unmarshal(buf.Bytes(), respBody)
+	b = buf.Bytes()
+	err = json.Unmarshal(b, respBody)
 	if err != nil {
 		return "", err
 	}
-	c.userContext[userName] = respBody.Context
+
+	log.Printf("%#v", string(b))
+
+	status.context = respBody.Context
+	status.mode = respBody.Mode
+
+	log.Printf("%#v", status)
+
+	c.userChatStatus[userName] = status
 	return respBody.UTT, nil
+}
+
+type chatStatus struct {
+	context string
+	mode    string
 }
 
 type DialogueReq struct {
@@ -65,6 +84,7 @@ type DialogueReq struct {
 	Constellations string `json:"constellations,omitempty"`
 	Place          string `json:"place,omitempty"`
 	Mode           string `json:"mode,omitempty"`
+	T              string `json:"t,omitempty"` // 20: 関西弁、30赤ちゃんらしい
 }
 
 type DialogueResp struct {
