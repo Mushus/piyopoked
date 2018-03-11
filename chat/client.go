@@ -10,7 +10,7 @@ import (
 func NewClient(apiKey string) *Client {
 	return &Client{
 		APIKey:      apiKey,
-		Endpoint:    "https://api.apigw.smt.docomo.ne.jp/dialogue/v1/",
+		Endpoint:    "https://api.apigw.smt.docomo.ne.jp/dialogue/v1",
 		userContext: map[string]string{},
 	}
 }
@@ -24,7 +24,7 @@ type Client struct {
 func (c *Client) Talk(userName string, message string) (string, error) {
 	client := &http.Client{}
 
-	uri := fmt.Sprintf(c.Endpoint+"%sdialogue?APIKEY=%s", c.APIKey)
+	uri := fmt.Sprintf("%s/dialogue?APIKEY=%s", c.Endpoint, c.APIKey)
 	context, _ := c.userContext[userName]
 	reqBody := DialogueReq{
 		UTT:     message,
